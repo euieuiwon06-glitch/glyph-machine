@@ -1,0 +1,5 @@
+node_modules
+dist
+# prepare-assets가 빌드 때 채운다(wasm 런타임·포즈 모델)
+public/mediapipe
+public/models
