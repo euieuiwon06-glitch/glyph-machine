@@ -21,6 +21,7 @@ import { clamp, lerp } from './grammar';
 const CX = 960, CY = 540;
 const STEP = 26;                 // 이 거리(px)마다 선 묶음 한 조각
 const MAX_SEGS = 36000;          // 선 조각 상한
+const COMPLETE_NIB = 600;
 const MAX_FILLS = 110, MAX_BARS = 90, MAX_NIB = 900;
 const MAX_HEAVY = 4, MAX_BLADES = 2, MAX_MOTIFS = 130, MAX_BLACK_MOTIFS = 14, MAX_BEADS = 150, MAX_STIP = 7000, MAX_HAIR = 20, MAX_RINGS = 7;
 const GRID = 40, GW = 48, GH = 27;
@@ -51,6 +52,8 @@ export interface Frame { rot: number; k: number }
 
 export class Composer {
   paused = false;
+  /** 그림이 다 그려졌으면 true(생성을 멈춘다) */
+  done = false;
   frame: Frame = { rot: 0, k: 1 };
   private strokes: (Stroke | null)[] = [null, null];
   private seedN = 0;
@@ -104,7 +107,9 @@ export class Composer {
   }
 
   update(f: Features, dt: number) {
-    if (this.paused || !f.present) return;
+    if (this.paused || this.done || !f.present) return;
+    // 완성: 펜촉 획이 충분히 쌓이면(계속 움직여 약 2~3분) 생성을 멈춘다
+    if (this.n.nib >= COMPLETE_NIB || this.n.segs >= MAX_SEGS) { this.done = true; return; }
     this.t += dt;
     const a = Math.min(1, dt * 3);
     this.frame.rot += (clamp(f.tilt * 0.8 + f.lean * 0.5, -0.35, 0.35) - this.frame.rot) * a;
@@ -594,7 +599,7 @@ export class Composer {
   }
 
   stats() {
-    return { ...this.n, heavy: this.heavy.length };
+    return { ...this.n, heavy: this.heavy.length, progress: Math.min(1, this.n.nib / COMPLETE_NIB) };
   }
 }
 

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Poster } from './engine/poster';
 import { Composer } from './engine/composer';
 import { composeReference } from './engine/reference';
+import { toSVG } from './engine/svg';
 import { FeatureTracker, type Features } from './motion/features';
 import { PoseSource } from './motion/pose';
 import { MouseSource } from './motion/mouse';
@@ -14,6 +15,9 @@ const q = new URLSearchParams(location.search);
 export function App() {
   const ref = useRef<HTMLCanvasElement>(null);
   const [hint, setHint] = useState<string | null>(null);
+  // 그림이 완성됐거나(자동 정지) 일시정지했을 때만 SVG 버튼을 보인다
+  const [ready, setReady] = useState(false);
+  const saveSvgRef = useRef<() => void>(() => {});
 
   useEffect(() => {
     const poster = new Poster(ref.current!);
@@ -48,7 +52,7 @@ export function App() {
     // 렌더 루프: 새로 생긴 요소만 덧그린다
     const simSpeed = +(q.get('sim') || 1) || 1;
     const t0 = performance.now();
-    let last = t0, raf = 0;
+    let last = t0, raf = 0, shown = false;
     const frame = (now: number) => {
       const dt = Math.min(0.05, (now - last) / 1000);
       last = now;
@@ -65,6 +69,8 @@ export function App() {
         composer.update(features, dt);
       }
       poster.flush();
+      const r = composer.done || composer.paused || mode === 'ref';
+      if (r !== shown) { shown = r; setReady(r); }
       debug?.draw(features, { els: poster.els.length, ...composer.stats() }, mode + (composer.paused ? ' (paused)' : ''));
       raf = requestAnimationFrame(frame);
     };
@@ -83,6 +89,7 @@ export function App() {
       if (e.repeat) return;
       if (e.code === 'Space') {
         e.preventDefault();
+        if (composer.done) { flash('완성됨 · R 새로 시작', 1400); return; }
         composer.paused = !composer.paused;
         flash(composer.paused ? '일시정지' : '재개', 1000);
       } else if (e.code === 'KeyR') {
@@ -91,17 +98,25 @@ export function App() {
         else composer.reset();
         poster.flush();
       } else if (e.code === 'KeyS') {
-        const blob = await poster.exportPNG(2);
-        saveN++;
-        try { localStorage.setItem('glyph-machine-n', String(saveN)); } catch { /* 무시 */ }
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = `GLYPH-MACHINE-${String(saveN).padStart(3, '0')}.png`;
-        a.click();
-        setTimeout(() => URL.revokeObjectURL(a.href), 4000);
-        flash(`저장됨 ${a.download}`, 1400);
+        void savePNG();
       }
     };
+    const nextName = (ext: string) => {
+      saveN++;
+      try { localStorage.setItem('glyph-machine-n', String(saveN)); } catch { /* 무시 */ }
+      return `GLYPH-MACHINE-${String(saveN).padStart(3, '0')}.${ext}`;
+    };
+    const download = (blob: Blob, name: string) => {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = name;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+      flash(`저장됨 ${name}`, 1400);
+    };
+    // 둘 다 요소 목록에서 다시 그려 만들기 때문에 버튼·안내 문구는 파일에 들어가지 않는다
+    const savePNG = async () => download(await poster.exportPNG(2), nextName('png'));
+    saveSvgRef.current = () => download(new Blob([toSVG(poster.els)], { type: 'image/svg+xml' }), nextName('svg'));
     const onMove = () => flash(null);
     const onResize = () => poster.resize();
     window.addEventListener('keydown', onKey);
@@ -122,6 +137,19 @@ export function App() {
   return (
     <>
       <canvas ref={ref} style={{ display: 'block' }} />
+      <button
+        type="button"
+        className="gm-svg"
+        aria-label="SVG로 저장"
+        onClick={() => saveSvgRef.current()}
+        tabIndex={ready ? 0 : -1}
+        style={{ opacity: ready ? 1 : 0, pointerEvents: ready ? 'auto' : 'none' }}
+      >
+        SVG
+        <svg width="9" height="11" viewBox="0 0 9 11" aria-hidden="true">
+          <path d="M4.5 0v8.5M1 5.2l3.5 3.5L8 5.2M0.5 10.5h8" fill="none" stroke="currentColor" strokeWidth="1.2" />
+        </svg>
+      </button>
       <div
         style={{
           position: 'fixed', right: 20, bottom: 16, font: '11px/1 ui-monospace, "SF Mono", Menlo, monospace',

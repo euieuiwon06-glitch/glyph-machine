@@ -8,6 +8,8 @@ export const BG = '#ffffff';
 // 0: 메인 #111, 1: 보조 #555, 2: 미세선 #B5B5B5, 3: 종이색(검정 면 위의 흰 선)
 const INK = [[17, 17, 17], [85, 85, 85], [181, 181, 181], [255, 255, 255]] as const;
 export type Ink = 0 | 1 | 2 | 3;
+/** SVG용 색 */
+export const inkRGB = (c: Ink) => `rgb(${INK[c][0]},${INK[c][1]},${INK[c][2]})`;
 const rgba = (c: Ink, a: number) => `rgba(${INK[c][0]},${INK[c][1]},${INK[c][2]},${a})`;
 
 /** 두꺼운 초승달 면: 같은 ry, 다른 rx의 두 타원 사이를 t0→t1 구간만 채운다. */
@@ -44,13 +46,13 @@ export function rng(seed: number) {
   };
 }
 
-function ellPt(cx: number, cy: number, rx: number, ry: number, rot: number, t: number): [number, number] {
+export function ellPt(cx: number, cy: number, rx: number, ry: number, rot: number, t: number): [number, number] {
   const x = rx * Math.cos(t), y = ry * Math.sin(t);
   const c = Math.cos(rot), s = Math.sin(rot);
   return [cx + x * c - y * s, cy + x * s + y * c];
 }
 
-function cubicPts(p: number[], per = 40): number[] {
+export function cubicPts(p: number[], per = 40): number[] {
   const out: number[] = [p[0], p[1]];
   for (let i = 0; i + 7 < p.length; i += 6) {
     const [x0, y0, x1, y1, x2, y2, x3, y3] = p.slice(i, i + 8);
