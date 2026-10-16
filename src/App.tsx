@@ -18,6 +18,7 @@ export function App() {
   // 그림이 완성됐거나(자동 정지) 일시정지했을 때만 SVG 버튼을 보인다
   const [ready, setReady] = useState(false);
   const saveSvgRef = useRef<() => void>(() => {});
+  const savePngRef = useRef<() => void>(() => {});
 
   useEffect(() => {
     const poster = new Poster(ref.current!);
@@ -116,6 +117,7 @@ export function App() {
     };
     // 둘 다 요소 목록에서 다시 그려 만들기 때문에 버튼·안내 문구는 파일에 들어가지 않는다
     const savePNG = async () => download(await poster.exportPNG(2), nextName('png'));
+    savePngRef.current = () => void savePNG();
     saveSvgRef.current = () => download(new Blob([toSVG(poster.els)], { type: 'image/svg+xml' }), nextName('svg'));
     const onMove = () => flash(null);
     const onResize = () => poster.resize();
@@ -137,19 +139,20 @@ export function App() {
   return (
     <>
       <canvas ref={ref} style={{ display: 'block' }} />
-      <button
-        type="button"
-        className="gm-svg"
-        aria-label="SVG로 저장"
-        onClick={() => saveSvgRef.current()}
-        tabIndex={ready ? 0 : -1}
-        style={{ opacity: ready ? 1 : 0, pointerEvents: ready ? 'auto' : 'none' }}
-      >
-        SVG
-        <svg width="9" height="11" viewBox="0 0 9 11" aria-hidden="true">
-          <path d="M4.5 0v8.5M1 5.2l3.5 3.5L8 5.2M0.5 10.5h8" fill="none" stroke="currentColor" strokeWidth="1.2" />
-        </svg>
-      </button>
+      <div className="gm-actions" style={{ opacity: ready ? 1 : 0, pointerEvents: ready ? 'auto' : 'none' }}>
+        <button type="button" className="gm-btn" aria-label="PNG로 저장" tabIndex={ready ? 0 : -1} onClick={() => savePngRef.current()}>
+          PNG
+          <svg width="9" height="11" viewBox="0 0 9 11" aria-hidden="true">
+            <path d="M4.5 0v8.5M1 5.2l3.5 3.5L8 5.2M0.5 10.5h8" fill="none" stroke="currentColor" strokeWidth="1.2" />
+          </svg>
+        </button>
+        <button type="button" className="gm-btn" aria-label="SVG로 저장" tabIndex={ready ? 0 : -1} onClick={() => saveSvgRef.current()}>
+          SVG
+          <svg width="9" height="11" viewBox="0 0 9 11" aria-hidden="true">
+            <path d="M4.5 0v8.5M1 5.2l3.5 3.5L8 5.2M0.5 10.5h8" fill="none" stroke="currentColor" strokeWidth="1.2" />
+          </svg>
+        </button>
+      </div>
       <div
         style={{
           position: 'fixed', right: 20, bottom: 16, font: '11px/1 ui-monospace, "SF Mono", Menlo, monospace',
